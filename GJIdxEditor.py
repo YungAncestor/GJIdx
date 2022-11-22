@@ -124,7 +124,6 @@ class IdxEditor:
 
     def set_size_by_path(self, path, size):
         for i in range(len(self.pathlist)):
-            print(i)
             if self.pathlist[i] == path:
                 print('[IdxSetSizeByPath]Set size {} -> {} for path {} at position {}.'
                       .format(self.sizelist[i], size, path, i))
