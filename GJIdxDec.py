@@ -43,7 +43,7 @@ class IdxReader:
         self.chunklen = int.from_bytes(self.f.read(4), byteorder='little')
 
         # idxver 3 = lzma
-        # 0 = no compression (UNTESTED!), 4 = oodle
+        # 0 = no compression (UNTESTED!), 4 = oodle(not supported)
         self.idxver = int.from_bytes(self.f.read(2), byteorder='little')
 
         self.checksum = int.from_bytes(self.f.read(2), byteorder='little')
@@ -104,13 +104,18 @@ class IdxReader:
         return tmp
 
     def output(self, path):
+        decidx = self.decompress_all()
+        if decidx is None:
+            return False
+
         try:
-            outfile = open(path, mode='xb')
+            outfile = open(path, mode='wb')
         except IOError:
             print('Open file for output failed!')
-            return
+            return False
 
-        outfile.write(self.decompress_all())
+        outfile.write(decidx)
+        return True
 
 
 if __name__ == '__main__':

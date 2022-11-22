@@ -2,6 +2,7 @@ import lzma
 import math
 import sys
 import time
+import hashlib
 
 
 class IdxBuilder:
@@ -41,20 +42,22 @@ class IdxBuilder:
         self.f.close()
 
     def build_body(self):
-        pesudoheader = b'\x5d\x00\x00\x08\x00'
+        pseudoheader = b'\x5d\x00\x00\x08\x00'
         for i in range(0, self.chunknum):
+            # spilt chunk
             tmp = self.idxbodyraw[0:self.chunklen]
             print("[IdxBuildChunk]ChunkID: {}, RawSize: {}".format(i, len(tmp)))
             self.idxbodyraw = self.idxbodyraw[self.chunklen:]
             # lzma compress (idxver 3)
             tmp = lzma.compress(tmp, format=lzma.FORMAT_ALONE)
-            # remove lzma header & add pesudo header
+            # remove lzma header & add pseudo header
             tmp = tmp[13:]
-            tmp = pesudoheader + tmp
+            tmp = pseudoheader + tmp
             # get chunk compressed size
             self.chunkoffset.append(len(tmp))
             print("[IdxBuildChunk]ChunkID: {}, CompressedSize: {}, Remaining: {}"
                   .format(i, len(tmp), len(self.idxbodyraw)))
+            # append to idx body
             self.idxbody = self.idxbody + tmp
 
         # calculate compressed length
@@ -68,7 +71,7 @@ class IdxBuilder:
             chunkindex = chunkindex + int.to_bytes(self.chunkoffset[i], byteorder='little', length=4)
 
         self.compressedsize = len(self.idxbody) + len(chunkindex) + 32
-
+        # build header
         self.idxheader = int.to_bytes(self.size, byteorder='little', length=8)
         self.idxheader = self.idxheader + int.to_bytes(self.timestamp, byteorder='little', length=8)
         self.idxheader = self.idxheader + int.to_bytes(self.compressedsize, byteorder='little', length=8)
@@ -88,14 +91,18 @@ class IdxBuilder:
               .format(self.size, self.timestamp, self.compressedsize, self.chunklen, self.idxver, self.checksum,
                       self.chunknum))
 
+    def get_sha1_hash(self):
+        return hashlib.sha1(self.idxheader + self.idxbody).hexdigest()
+
     def output(self, path):
         try:
-            outfile = open(path, mode='xb')
+            outfile = open(path, mode='wb')
         except IOError:
             print('Open file for output failed!')
-            return
+            return False
 
         outfile.write(self.idxheader + self.idxbody)
+        return True
 
 
 def crc16_ccitt(bytestr):
@@ -118,6 +125,6 @@ if __name__ == '__main__':
     else:
         idx = IdxBuilder(sys.argv[1])
         if len(sys.argv) < 3:
-            idx.output(sys.argv[1] + ".idx")
+            idx.output(idx.get_sha1_hash())
         else:
             idx.output(sys.argv[2])
