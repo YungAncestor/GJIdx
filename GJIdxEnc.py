@@ -18,7 +18,6 @@ class IdxBuilder:
     datastart = 0
     bodysize = 0
     idxbody = b''
-    idxbodyraw = b''
     idxheader = b''
 
     def __init__(self, path):
@@ -27,9 +26,8 @@ class IdxBuilder:
         except IOError:
             print('Open file failed!')
             sys.exit()
-        self.idxbodyraw = self.f.read()
         # get file size
-        self.size = len(self.idxbodyraw)
+        self.size = len(self.f.read())
         # set file pointer to beginning
         self.f.seek(0)
         self.timestamp = int(time.time())
@@ -38,25 +36,22 @@ class IdxBuilder:
         self.build_header()
         self.print_header()
 
+
     def __del__(self):
         self.f.close()
 
     def build_body(self):
         pseudoheader = b'\x5d\x00\x00\x08\x00'
         for i in range(0, self.chunknum):
-            # spilt chunk
-            tmp = self.idxbodyraw[0:self.chunklen]
-            print("[IdxBuildChunk]ChunkID: {}, RawSize: {}".format(i, len(tmp)))
-            self.idxbodyraw = self.idxbodyraw[self.chunklen:]
             # lzma compress (idxver 3)
-            tmp = lzma.compress(tmp, format=lzma.FORMAT_ALONE)
+            tmp = lzma.compress(self.f.read(self.chunklen), format=lzma.FORMAT_ALONE, preset=1)
             # remove lzma header & add pseudo header
             tmp = tmp[13:]
             tmp = pseudoheader + tmp
             # get chunk compressed size
             self.chunkoffset.append(len(tmp))
-            print("[IdxBuildChunk]ChunkID: {}, CompressedSize: {}, Remaining: {}"
-                  .format(i, len(tmp), len(self.idxbodyraw)))
+            print("[IdxBuildChunk]ChunkID: {}, CompressedSize: {}"
+                  .format(i, len(tmp)))
             # append to idx body
             self.idxbody = self.idxbody + tmp
 
