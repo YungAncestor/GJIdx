@@ -90,7 +90,7 @@ class IdxEditor:
     def get_size_by_path(self, path):
         for i in range(len(self.pathlist)):
             if self.pathlist[i] == path:
-                print('[IdxGetHashByPath]Found size {} for path {} at position {}.'
+                print('[IdxGetSizeByPath]Found size {} for path {} at position {}.'
                       .format(self.sizelist[i], path, i))
                 return self.sizelist[i]
         return None
@@ -124,12 +124,13 @@ class IdxEditor:
 
     def set_size_by_path(self, path, size):
         for i in range(len(self.pathlist)):
+            print(i)
             if self.pathlist[i] == path:
-                print('[IdxSetHashByPath]Set size {} -> {} for path {} at position {}.'
+                print('[IdxSetSizeByPath]Set size {} -> {} for path {} at position {}.'
                       .format(self.sizelist[i], size, path, i))
                 self.sizelist[i] = size
                 return True
-            return False
+        return False
 
     def exchange_by_path(self, path1, path2):
         hash1 = self.get_hash_by_path(path1)
@@ -200,5 +201,10 @@ if __name__ == '__main__':
         # do something evil
         tmp01 = idx.exchange_by_path(b'data/tables/locale/vi.tab', b'data/tables/locale/zh_MYSG.tab')
         tmp02 = idx.exchange_by_path(b'data/caches/locale_vi.new_cache', b'data/caches/locale_zh_MYSG.new_cache')
-        if tmp01 is True and tmp02 is True:
+        tmp03 = idx.get_hash_by_path(b'asset/interface/Resource/font/Regular.ttf')
+        tmp04 = idx.get_size_by_path(b'asset/interface/Resource/font/Regular.ttf')
+        if tmp03 and tmp04:
+            tmp05 = idx.set_hash_by_path(b'asset/interface/Resource/font/ZhunYuan.TTF', tmp03)
+            tmp06 = idx.set_size_by_path(b'asset/interface/Resource/font/ZhunYuan.TTF', tmp04)
+        if tmp01 is True and tmp02 is True and tmp05 is True and tmp06 is True:
             idx.output(sys.argv[1] + '.new')
