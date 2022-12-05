@@ -1,6 +1,7 @@
 import lzma
 import math
 import sys
+import OodleHelper
 
 
 class IdxReader:
@@ -70,7 +71,8 @@ class IdxReader:
         self.f.seek(self.datastart, 0)
         for i in range(0, chunkid):
             self.f.seek(self.chunkoffset[i], 1)
-        print("[IdxReadChunkRaw]ChunkID: {}, Offset: {}, CompressedSize: {}".format(chunkid, self.f.tell(), self.chunkoffset[chunkid]))
+        print("[IdxReadChunkRaw]ChunkID: {}, Offset: {}, CompressedSize: {}".format(chunkid, self.f.tell(),
+                                                                                    self.chunkoffset[chunkid]))
         return self.f.read(self.chunkoffset[chunkid])
 
     def fix_lzma_header(self, rawdata):
@@ -86,21 +88,31 @@ class IdxReader:
         rawdata = rawdata[5:]
         return header + rawdata
 
+    def v4_decompress(self, chunkdata):
+        size = int.from_bytes(chunkdata[:4], byteorder='little')
+        data = chunkdata[4:]
+        print("[IdxV4Dec]Chunk length: {}".format(size))
+        return OodleHelper.decompress_chunk(data, size)
+
     def decompress_all(self):
         """
         Decompress the idx using LZMA (idxver 3 only)
         :return: decompressed data if supported
         """
-        if not self.idxver == 3:
+        tmp = b''
+        if self.idxver == 3:
+            # read all chunk data, add headers and decompress
+            # then join all decompressed data.
+            for i in range(0, self.chunknum):
+                tmp = tmp + lzma.decompress(self.fix_lzma_header(self.read_chunk_raw(i)))
+
+        elif self.idxver == 4:
+            for i in range(0, self.chunknum):
+                tmp = tmp + self.v4_decompress(self.read_chunk_raw(i))
+
+        else:
             print("Unsupported idx version {}!".format(self.idxver))
             return None
-
-        # read all chunk data, add headers and decompress
-        # then join all decompressed data.
-        tmp = b''
-        for i in range(0, self.chunknum):
-            tmp = tmp + lzma.decompress(self.fix_lzma_header(self.read_chunk_raw(i)))
-
         return tmp
 
     def output(self, path):
@@ -115,6 +127,7 @@ class IdxReader:
             return False
 
         outfile.write(decidx)
+        print("[GJIdxDec]Done!")
         return True
 
 
