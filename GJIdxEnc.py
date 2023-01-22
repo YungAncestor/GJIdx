@@ -3,6 +3,7 @@ import math
 import sys
 import time
 import hashlib
+import OodleHelper
 
 
 class IdxBuilder:
@@ -32,22 +33,44 @@ class IdxBuilder:
         self.f.seek(0)
         self.timestamp = int(time.time())
         self.chunknum = math.ceil(self.size / self.chunklen)
-        self.build_body()
-        self.build_header()
-        self.print_header()
-
 
     def __del__(self):
         self.f.close()
 
+    def build(self):
+        self.build_body()
+        self.build_header()
+        self.print_header()
+
+    def set_ver(self, ver):
+        if ver == 3 or ver == 4:
+            self.idxver = ver
+            return True
+        return False
+
+    def get_ver(self):
+        return self.idxver
+
     def build_body(self):
         pseudoheader = b'\x5d\x00\x00\x08\x00'
+        self.chunkoffset = []
         for i in range(0, self.chunknum):
-            # lzma compress (idxver 3)
-            tmp = lzma.compress(self.f.read(self.chunklen), format=lzma.FORMAT_ALONE, preset=1)
-            # remove lzma header & add pseudo header
-            tmp = tmp[13:]
-            tmp = pseudoheader + tmp
+            if self.idxver == 3:
+                # lzma compress (idxver 3)
+                tmp = lzma.compress(self.f.read(self.chunklen), format=lzma.FORMAT_ALONE, preset=1)
+                # remove lzma header & add pseudo header
+                tmp = tmp[13:]
+                tmp = pseudoheader + tmp
+            elif self.idxver == 4:
+                # oodle compress (idxver 4)
+                compdata = self.f.read(self.chunklen)
+                datalen = len(compdata)
+                tmp = OodleHelper.compress_chunk(compdata)
+                tmp = int.to_bytes(datalen, byteorder='little', length=4) + tmp
+            else:
+                print("[IdxBuildChunk]Invalid idx version: {}"
+                      .format(self.idxver))
+                return
             # get chunk compressed size
             self.chunkoffset.append(len(tmp))
             print("[IdxBuildChunk]ChunkID: {}, CompressedSize: {}"
@@ -119,6 +142,8 @@ if __name__ == '__main__':
         print('Bad parameters. Usage: GJIdxEnc.py <input_file> [output_file]')
     else:
         idx = IdxBuilder(sys.argv[1])
+        idx.build()
+        print(idx.get_sha1_hash())
         if len(sys.argv) < 3:
             idx.output(idx.get_sha1_hash())
         else:
